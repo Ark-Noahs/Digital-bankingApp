@@ -10,7 +10,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 public class SecurityConfig {
-
+    
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
