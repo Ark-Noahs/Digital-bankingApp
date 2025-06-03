@@ -25,11 +25,24 @@ public class UserController {
     @Autowired 
     private JwtUtil jwtUtil;
 
+    private boolean isValidPassword(String password) {
+    //min 8 chars, need one uppercase and one special char
+    return password != null &&
+           password.length() >= 8 &&
+           password.matches(".*[A-Z].*") &&        //uppercase char
+           password.matches(".*[^a-zA-Z0-9].*");   //special char
+    }
+
     @PostMapping("/register")
-    public UserResponse register(@RequestBody User user) {
+    public ResponseEntity<?> register(@RequestBody User user){
+        if (!isValidPassword(user.getPassword())) {
+            return ResponseEntity
+                    .badRequest()
+                    .body("password must be at least 8 characters long, have an uppercase letter, and one special character.");
+        }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        User saved = userRepository.save(user);
-        return new UserResponse(saved.getId(), saved.getUsername(), saved.getEmail());
+        User savedUser = userRepository.save(user);
+        return ResponseEntity.ok(savedUser);
     }
 
     @GetMapping("/{id}")  //get user by their ID
