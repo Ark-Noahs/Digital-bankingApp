@@ -1,20 +1,12 @@
-
-
-package com.example.demo;
+package com.example.demo.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class HelloController {
-    @GetMapping("/hello")
+    @GetMapping("/")
     public String hello() {
-        return "if your reading this the springBoot backend works!!!"; 
+        return "Hello, Spring Boot is working as of 5/29/2025! /";
     }
-
 }
-
-
-
-
-
