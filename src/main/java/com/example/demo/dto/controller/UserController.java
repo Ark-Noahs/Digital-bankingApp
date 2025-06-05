@@ -1,4 +1,3 @@
-
 package com.example.demo.controller;
 
 import com.example.demo.model.User;
@@ -25,14 +24,15 @@ public class UserController {
     @Autowired 
     private JwtUtil jwtUtil;
 
+    // Password validation: at least 8 chars, 1 uppercase, 1 special character
     private boolean isValidPassword(String password) {
-    //min 8 chars, need one uppercase and one special char
-    return password != null &&
-           password.length() >= 8 &&
-           password.matches(".*[A-Z].*") &&        //uppercase char
-           password.matches(".*[^a-zA-Z0-9].*");   //special char
+        return password != null &&
+               password.length() >= 8 &&
+               password.matches(".*[A-Z].*") &&        // uppercase char
+               password.matches(".*[^a-zA-Z0-9].*");   // special char
     }
 
+    // User registration
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user){
         if (!isValidPassword(user.getPassword())) {
@@ -45,12 +45,13 @@ public class UserController {
         return ResponseEntity.ok(savedUser);
     }
 
-    @GetMapping("/{id}")  //get user by their ID
+    // Get user by ID
+    @GetMapping("/{id}")
     public User getUserById(@PathVariable Long id){
         return userRepository.findById(id).orElse(null);
-    
     }
 
+    // Update user by ID
     @PutMapping("/{id}")
     public UserResponse updateUser(@PathVariable Long id, @RequestBody User updatedUser){
         return userRepository.findById(id).map(user -> {
@@ -62,18 +63,20 @@ public class UserController {
         }).orElse(null);
     }
 
-    @DeleteMapping("/{id}")   //delete a user by their id 
+    // Delete user by ID
+    @DeleteMapping("/{id}")
     public void deleteUser(@PathVariable Long id){
         userRepository.deleteById(id);
     }
 
+    // Login endpoint
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request){
         Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
         if (userOpt.isPresent()){
             User user = userOpt.get();
             if(passwordEncoder.matches(request.getPassword(), user.getPassword())){
-                String token = jwtUtil.generateToken(user.getEmail()); // <-- Only email!
+                String token = jwtUtil.generateToken(user.getEmail());
                 UserResponse userResponse = new UserResponse(
                     user.getId(),
                     user.getUsername(),
@@ -90,12 +93,10 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid login credentials");
     }
 
+    // Get current user info via JWT
     @GetMapping("/me")
     public ResponseEntity<?> getMe(@RequestHeader("Authorization") String authHeader) {
-        // Extract token
         String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
-
-        // Validate and parse
         if (!jwtUtil.validateToken(token)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid JWT");
         }
@@ -109,11 +110,4 @@ public class UserController {
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
     }
-
-
-
 }
-
-
-
-

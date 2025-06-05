@@ -10,13 +10,10 @@ public class Account {
     private Long id;
 
     @Column(nullable = false)
-    private String type; //checking or savings
+    private String accountType; // changes made to prevent error 500
 
     @Column(nullable = false)
     private Double balance = 0.0;
-
-    @Column(nullable = false)
-    private String accountType;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
@@ -26,19 +23,12 @@ public class Account {
     public Long getId() { return id; }
     public void setId(Long id)  {this.id = id; }
 
-    public String getType() { return type; }
-    public void setType(String type) {this.type = type; }
+    public String getAccountType() { return accountType; }
+    public void setAccountType(String accountType)  {this.accountType = accountType; }
 
     public Double getBalance() { return balance; }
     public void setBalance(Double balance) { this.balance = balance; }
 
     public User getUser() { return user; }
     public void setUser(User user) {this.user = user; }
-
-    public String getAccountType() { return accountType; }
-    public void setAccountType(String accountType)  {this.accountType = accountType; }
-
-
-
-
 }

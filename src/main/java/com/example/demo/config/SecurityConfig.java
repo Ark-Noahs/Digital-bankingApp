@@ -17,17 +17,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF for Postman testing..
+            .csrf(csrf -> csrf.disable()) // Disable CSRF for Postman testing
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/users/register", "/api/users/login").permitAll()
-                .anyRequest().authenticated()
+                .anyRequest().permitAll()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 }
-
-
-
-
