@@ -7,6 +7,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class HelloController {
     @GetMapping("/")
     public String hello() {
-        return "Hello, Spring Boot is working as of 5/29/2025! /";
+        return "Hello, Spring Boot is working as of 6/5/2025! /";
     }
 }

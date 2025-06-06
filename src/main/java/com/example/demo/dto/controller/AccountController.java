@@ -12,8 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+import org.springframework.validation.BindingResult;
+
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Collectors;
 
 @RestController
@@ -39,13 +43,24 @@ public class AccountController {
     @PostMapping("/create")
     public ResponseEntity<?> createAccount(
         @RequestHeader("Authorization") String authHeader,
-        @RequestBody AccountRequest request) {
+        @Valid @RequestBody AccountRequest request,
+        BindingResult bindingResult) {
+
+        // Collect all validation errors if any
+        if (bindingResult.hasErrors()) {
+            String errors = bindingResult.getAllErrors().stream()
+                    .map(e -> e.getDefaultMessage())
+                    .collect(Collectors.joining("; "));
+            return ResponseEntity.badRequest().body(errors);
+        }
+
         Optional<User> userOpt = getCurrentUser(authHeader);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body("Unauthorized");
+            return ResponseEntity.status(401).body("Unauthorized: Invalid token or user.");
         }
+
         Account acc = new Account();
-        acc.setAccountType(request.getAccountType());  // correct field!
+        acc.setAccountType(request.getAccountType());
         acc.setBalance(request.getInitialBalance());
         acc.setUser(userOpt.get());
         Account saved = accountRepository.save(acc);
@@ -75,7 +90,7 @@ public class AccountController {
         }
         Optional<Account> accOpt = accountRepository.findById(id);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId())) {
-            return ResponseEntity.status(404).body("Account not found");
+            return ResponseEntity.status(404).body("Account not found or access denied");
         }
         Account acc = accOpt.get();
         return ResponseEntity.ok(new AccountResponse(acc.getId(), acc.getAccountType(), acc.getBalance()));
@@ -83,19 +98,30 @@ public class AccountController {
 
     // Update account (if it belongs to the user)
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateAccount(@PathVariable Long id,
-                                           @RequestHeader("Authorization") String authHeader,
-                                           @RequestBody AccountRequest request) {
+    public ResponseEntity<?> updateAccount (
+        @PathVariable Long id,
+        @RequestHeader("Authorization") String authHeader,
+        @Valid @RequestBody AccountRequest request,
+        BindingResult bindingResult) {
+
+        // Collect all validation errors if any
+        if (bindingResult.hasErrors()) {
+            String errors = bindingResult.getAllErrors().stream()
+                    .map(e -> e.getDefaultMessage())
+                    .collect(Collectors.joining("; "));
+            return ResponseEntity.badRequest().body(errors);
+        }
+
         Optional<User> userOpt = getCurrentUser(authHeader);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(401).body("Unauthorized");
         }
         Optional<Account> accOpt = accountRepository.findById(id);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId())) {
-            return ResponseEntity.status(404).body("Account not found");
+            return ResponseEntity.status(404).body("Account not found or access denied");
         }
         Account acc = accOpt.get();
-        acc.setAccountType(request.getAccountType());  // correct field!
+        acc.setAccountType(request.getAccountType());
         acc.setBalance(request.getInitialBalance());
         Account saved = accountRepository.save(acc);
         return ResponseEntity.ok(new AccountResponse(saved.getId(), saved.getAccountType(), saved.getBalance()));
@@ -110,7 +136,7 @@ public class AccountController {
         }
         Optional<Account> accOpt = accountRepository.findById(id);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId())) {
-            return ResponseEntity.status(404).body("Account not found");
+            return ResponseEntity.status(404).body("Account not found or access denied");
         }
         accountRepository.deleteById(id);
         return ResponseEntity.ok("Account deleted successfully");

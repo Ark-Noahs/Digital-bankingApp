@@ -1,15 +1,21 @@
-
 package com.example.demo.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 
 public class LoginRequest {
+
+    @NotBlank(message = "Email is required")
+    @Email(message = "Please provide a valid email address")
     private String email;
+
+    @NotBlank(message = "Password is required")
     private String password;
 
-    // constructor
+    // No-args constructor
     public LoginRequest() {}
 
-    //Getters and Setters......
+    // Getters and Setters...
     public String getEmail() {
         return email;
     }
@@ -24,4 +30,3 @@ public class LoginRequest {
         this.password = password;
     }
 }
-

@@ -10,7 +10,7 @@ public class Account {
     private Long id;
 
     @Column(nullable = false)
-    private String accountType; // changes made to prevent error 500
+    private String accountType;
 
     @Column(nullable = false)
     private Double balance = 0.0;
@@ -18,6 +18,9 @@ public class Account {
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    // Default constructor required by JPA
+    public Account() {}
 
     // Getters & Setters
     public Long getId() { return id; }
@@ -31,4 +34,18 @@ public class Account {
 
     public User getUser() { return user; }
     public void setUser(User user) {this.user = user; }
+
+    // --- equals and hashCode using id ---
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Account account = (Account) o;
+        return id != null && id.equals(account.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31;
+    }
 }
