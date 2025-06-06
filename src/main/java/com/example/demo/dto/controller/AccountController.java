@@ -46,7 +46,6 @@ public class AccountController {
         @Valid @RequestBody AccountRequest request,
         BindingResult bindingResult) {
 
-        // Collect all validation errors if any
         if (bindingResult.hasErrors()) {
             String errors = bindingResult.getAllErrors().stream()
                     .map(e -> e.getDefaultMessage())
@@ -63,9 +62,29 @@ public class AccountController {
         acc.setAccountType(request.getAccountType());
         acc.setBalance(request.getInitialBalance());
         acc.setUser(userOpt.get());
+
+        // --- Generate and assign unique account number ---
+        String accNum = generateAccountNumber();
+        while (accountRepository.existsByAccountNumber(accNum)) {
+            accNum = generateAccountNumber();
+        }
+        acc.setAccountNumber(accNum);
+
         Account saved = accountRepository.save(acc);
 
-        return ResponseEntity.ok(new AccountResponse(saved.getId(), saved.getAccountType(), saved.getBalance()));
+        // --- FIXED: Pass all 4 args
+        return ResponseEntity.ok(new AccountResponse(
+            saved.getId(),
+            saved.getAccountType(),
+            saved.getBalance(),
+            saved.getAccountNumber()
+        ));
+    }
+
+    // Generates a random 10-digit account number
+    private String generateAccountNumber() {
+        long number = (long)(Math.random() * 1_000_000_0000L);
+        return String.format("%010d", number);
     }
 
     @GetMapping("/my")
@@ -75,13 +94,18 @@ public class AccountController {
             return ResponseEntity.status(401).body("Unauthorized");
         }
         List<Account> accounts = accountRepository.findByUser(userOpt.get());
+        // FIXED: Pass all 4 args
         List<AccountResponse> responses = accounts.stream()
-                .map(acc -> new AccountResponse(acc.getId(), acc.getAccountType(), acc.getBalance()))
+                .map(acc -> new AccountResponse(
+                        acc.getId(),
+                        acc.getAccountType(),
+                        acc.getBalance(),
+                        acc.getAccountNumber()
+                ))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
-    // Get single account by ID (if it belongs to the user)
     @GetMapping("/{id}")
     public ResponseEntity<?> getAccountById(@PathVariable Long id, @RequestHeader("Authorization") String authHeader) {
         Optional<User> userOpt = getCurrentUser(authHeader);
@@ -93,10 +117,15 @@ public class AccountController {
             return ResponseEntity.status(404).body("Account not found or access denied");
         }
         Account acc = accOpt.get();
-        return ResponseEntity.ok(new AccountResponse(acc.getId(), acc.getAccountType(), acc.getBalance()));
+        // FIXED: Pass all 4 args
+        return ResponseEntity.ok(new AccountResponse(
+                acc.getId(),
+                acc.getAccountType(),
+                acc.getBalance(),
+                acc.getAccountNumber()
+        ));
     }
 
-    // Update account (if it belongs to the user)
     @PutMapping("/{id}")
     public ResponseEntity<?> updateAccount (
         @PathVariable Long id,
@@ -104,7 +133,6 @@ public class AccountController {
         @Valid @RequestBody AccountRequest request,
         BindingResult bindingResult) {
 
-        // Collect all validation errors if any
         if (bindingResult.hasErrors()) {
             String errors = bindingResult.getAllErrors().stream()
                     .map(e -> e.getDefaultMessage())
@@ -124,10 +152,15 @@ public class AccountController {
         acc.setAccountType(request.getAccountType());
         acc.setBalance(request.getInitialBalance());
         Account saved = accountRepository.save(acc);
-        return ResponseEntity.ok(new AccountResponse(saved.getId(), saved.getAccountType(), saved.getBalance()));
+        // FIXED: Pass all 4 args
+        return ResponseEntity.ok(new AccountResponse(
+                saved.getId(),
+                saved.getAccountType(),
+                saved.getBalance(),
+                saved.getAccountNumber()
+        ));
     }
 
-    // Delete account (if it belongs to the user)
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteAccount(@PathVariable Long id, @RequestHeader("Authorization") String authHeader) {
         Optional<User> userOpt = getCurrentUser(authHeader);

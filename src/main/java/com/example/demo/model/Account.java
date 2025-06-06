@@ -12,6 +12,9 @@ public class Account {
     @Column(nullable = false)
     private String accountType;
 
+    @Column(nullable =false ,unique= true, length =12)
+    private String accountNumber;
+
     @Column(nullable = false)
     private Double balance = 0.0;
 
@@ -34,6 +37,10 @@ public class Account {
 
     public User getUser() { return user; }
     public void setUser(User user) {this.user = user; }
+
+    public String getAccountNumber(){ return accountNumber; }
+    public void setAccountNumber(String accountNumber) {this.accountNumber = accountNumber; }
+
 
     // --- equals and hashCode using id ---
     @Override
