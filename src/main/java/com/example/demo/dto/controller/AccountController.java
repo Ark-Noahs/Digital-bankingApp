@@ -11,8 +11,12 @@ import com.example.demo.dto.AccountResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+
 
 import jakarta.validation.Valid;
+import com.example.demo.dto.ApiResponse;
+
 import org.springframework.validation.BindingResult;
 
 import java.util.List;
@@ -41,7 +45,7 @@ public class AccountController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<?> createAccount(
+    public ResponseEntity<ApiResponse<AccountResponse>> createAccount(
         @RequestHeader("Authorization") String authHeader,
         @Valid @RequestBody AccountRequest request,
         BindingResult bindingResult) {
@@ -50,12 +54,14 @@ public class AccountController {
             String errors = bindingResult.getAllErrors().stream()
                     .map(e -> e.getDefaultMessage())
                     .collect(Collectors.joining("; "));
-            return ResponseEntity.badRequest().body(errors);
+            return ResponseEntity.badRequest()
+                .body(new ApiResponse<>(false, null, errors));
         }
 
         Optional<User> userOpt = getCurrentUser(authHeader);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body("Unauthorized: Invalid token or user.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiResponse<>(false, null, "Unauthorized: Invalid token or user."));
         }
 
         Account acc = new Account();
@@ -72,13 +78,17 @@ public class AccountController {
 
         Account saved = accountRepository.save(acc);
 
-        // --- FIXED: Pass all 4 args
-        return ResponseEntity.ok(new AccountResponse(
-            saved.getId(),
-            saved.getAccountType(),
-            saved.getBalance(),
-            saved.getAccountNumber()
-        ));
+        return ResponseEntity.ok(
+            new ApiResponse<>(true,
+                new AccountResponse(
+                    saved.getId(),
+                    saved.getAccountType(),
+                    saved.getBalance(),
+                    saved.getAccountNumber()
+                ),
+                "Account created successfully"
+            )
+        );
     }
 
     // Generates a random 10-digit account number

@@ -9,6 +9,8 @@ import com.example.demo.repository.AccountRepository;
 import com.example.demo.repository.TransactionRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JwtUtil;
+import com.example.demo.dto.ApiResponse;
+
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -78,9 +80,14 @@ public class TransactionController {
 
         Transaction saved = transactionRepository.save(txn);
 
-        return ResponseEntity.ok(new TransactionResponse(saved.getId(), saved.getType(), saved.getAmount(),
-                saved.getDescription(), saved.getTimestamp(), null));
-    }
+        return ResponseEntity.ok(
+            new ApiResponse<>(true,
+                new TransactionResponse(saved.getId(), saved.getType(), saved.getAmount(),
+                    saved.getDescription(), saved.getTimestamp(), null),
+                "Deposit successful")
+        );
+
+        }
 
     // WITHDRAW...
     @PostMapping("/withdraw/{accountId}")
@@ -114,9 +121,14 @@ public class TransactionController {
 
         Transaction saved = transactionRepository.save(txn);
 
-        return ResponseEntity.ok(new TransactionResponse(saved.getId(), saved.getType(), saved.getAmount(),
-                saved.getDescription(), saved.getTimestamp(), null));
-    }
+        return ResponseEntity.ok(
+            new ApiResponse<>(true,
+                new TransactionResponse(saved.getId(), saved.getType(), saved.getAmount(),
+                    saved.getDescription(), saved.getTimestamp(), null),
+                "Withdrawal successful")
+        );
+    
+        }
 
     // TRANSFER
     @PostMapping("/transfer/{accountId}")
@@ -165,71 +177,77 @@ public class TransactionController {
 
         Transaction saved = transactionRepository.save(txn);
 
-        return ResponseEntity.ok(new TransactionResponse(saved.getId(), saved.getType(), saved.getAmount(),
-                saved.getDescription(), saved.getTimestamp(), toAcc.getId()));
-    }
+        return ResponseEntity.ok(
+            new ApiResponse<>(true,
+                new TransactionResponse(saved.getId(), saved.getType(), saved.getAmount(),
+                    saved.getDescription(), saved.getTimestamp(), toAcc.getId()),
+                "Transfer successful")
+        );
+
+    
+        }
 
     // Get All Transactions for an Account (Transaction History)
-@GetMapping("/history/{accountId}")
-public ResponseEntity<?> getHistory(
-    @RequestHeader("Authorization") String authHeader,
-    @PathVariable Long accountId,
-    @RequestParam(required = false) String type,
-    @RequestParam(required = false) String fromDate,
-    @RequestParam(required = false) String toDate,
-    @RequestParam(defaultValue = "0") int page,
-    @RequestParam(defaultValue = "10") int size
-) {
-    Optional<User> userOpt = getCurrentUser(authHeader);
-    if (userOpt.isEmpty()) return ResponseEntity.status(401).body("Unauthorized");
+    @GetMapping("/history/{accountId}")
+    public ResponseEntity<?> getHistory(
+        @RequestHeader("Authorization") String authHeader,
+        @PathVariable Long accountId,
+        @RequestParam(required = false) String type,
+        @RequestParam(required = false) String fromDate,
+        @RequestParam(required = false) String toDate,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        Optional<User> userOpt = getCurrentUser(authHeader);
+        if (userOpt.isEmpty()) return ResponseEntity.status(401).body("Unauthorized");
 
-    Optional<Account> accOpt = accountRepository.findById(accountId);
-    if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId()))
-        return ResponseEntity.status(404).body("Account not found");
+        Optional<Account> accOpt = accountRepository.findById(accountId);
+        if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId()))
+            return ResponseEntity.status(404).body("Account not found");
 
-    //DEBUG LOGGING
-    System.out.println("DEBUG: User ID making request: " + userOpt.get().getId());
-    System.out.println("DEBUG: Account ID: " + accountId + ", Account's User ID: " + accOpt.get().getUser().getId());
+        //DEBUG LOGGING
+        System.out.println("DEBUG: User ID making request: " + userOpt.get().getId());
+        System.out.println("DEBUG: Account ID: " + accountId + ", Account's User ID: " + accOpt.get().getUser().getId());
 
-    //had to hard code dates bc were mismatching when being callled for transaction history
-    LocalDateTime start = LocalDateTime.of(2025, 6, 6, 0, 0, 0);
-    LocalDateTime end = LocalDateTime.of(2025, 6, 6, 23, 59, 59);
+        //had to hard code dates bc were mismatching when being callled for transaction history
+        LocalDateTime start = LocalDateTime.of(2025, 6, 6, 0, 0, 0);
+        LocalDateTime end = LocalDateTime.of(2025, 6, 6, 23, 59, 59);
 
-    System.out.println("DEBUG: Query date range: start=" + start + ", end=" + end);
-    Pageable pageable = PageRequest.of(page, size);
+        System.out.println("DEBUG: Query date range: start=" + start + ", end=" + end);
+        Pageable pageable = PageRequest.of(page, size);
 
-    //DEBUG: Show ALL transactions for the account, ignoring filters
-    List<Transaction> allTxns = transactionRepository.findByAccountId(accountId);
-    System.out.println("DEBUG: All transactions for accountId " + accountId + ": count=" + allTxns.size());
-    allTxns.forEach(t -> System.out.println("    [ALL] " + t.getId() + " " + t.getType() + " " + t.getAmount() + " " + t.getTimestamp()));
+        //DEBUG: Show ALL transactions for the account, ignoring filters
+        List<Transaction> allTxns = transactionRepository.findByAccountId(accountId);
+        System.out.println("DEBUG: All transactions for accountId " + accountId + ": count=" + allTxns.size());
+        allTxns.forEach(t -> System.out.println("    [ALL] " + t.getId() + " " + t.getType() + " " + t.getAmount() + " " + t.getTimestamp()));
 
-    //RETURN ALL transactions (no date/type filter) so Postman always shows results....
-    List<Transaction> txnsList = transactionRepository.findByAccountId(accountId);
-    System.out.println("DEBUG: Basic transactions: " + txnsList.size());
-    Page<Transaction> txns = new org.springframework.data.domain.PageImpl<>(txnsList);
+        //RETURN ALL transactions (no date/type filter) so Postman always shows results....
+        List<Transaction> txnsList = transactionRepository.findByAccountId(accountId);
+        System.out.println("DEBUG: Basic transactions: " + txnsList.size());
+        Page<Transaction> txns = new org.springframework.data.domain.PageImpl<>(txnsList);
+        
+        System.out.println("DEBUG: Transactions found by paged/filtered query: " + txns.getTotalElements());
+        txns.getContent().forEach(t -> System.out.println("    [PAGE] " + t.getId() + " " + t.getType() + " " + t.getAmount() + " " + t.getTimestamp()));
 
-    System.out.println("DEBUG: Transactions found by paged/filtered query: " + txns.getTotalElements());
-    txns.getContent().forEach(t -> System.out.println("    [PAGE] " + t.getId() + " " + t.getType() + " " + t.getAmount() + " " + t.getTimestamp()));
+        List<TransactionResponse> responses = txns.getContent().stream()
+                .map(txn -> new TransactionResponse(
+                    txn.getId(), txn.getType(), txn.getAmount(),
+                    txn.getDescription(), txn.getTimestamp(),
+                    txn.getToAccount() != null ? txn.getToAccount().getId() : null))
+                .collect(Collectors.toList());
 
-    List<TransactionResponse> responses = txns.getContent().stream()
-            .map(txn -> new TransactionResponse(
-                txn.getId(), txn.getType(), txn.getAmount(),
-                txn.getDescription(), txn.getTimestamp(),
-                txn.getToAccount() != null ? txn.getToAccount().getId() : null))
-            .collect(Collectors.toList());
+        // Create a response object for paging, then wrap in ApiResponse
+        java.util.HashMap<String, Object> result = new java.util.HashMap<>();
+        result.put("content", responses);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("count", txns.getTotalElements());
 
-    //JSON response (page, size, count, content)...
-    return ResponseEntity.ok(
-        new java.util.HashMap<String, Object>() {{
-            put("content", responses);
-            put("page", page);
-            put("size", size);
-            put("count", txns.getTotalElements());
-        }}
-    );
-}
+        return ResponseEntity.ok(
+            new ApiResponse<>(true, result, "Transaction history fetched successfully")
+        );
 
 
-
+    }
 
 }

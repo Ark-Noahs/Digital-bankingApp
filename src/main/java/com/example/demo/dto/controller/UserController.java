@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Optional;
 import com.example.demo.security.JwtUtil;
 
+import com.example.demo.dto.ApiResponse;
+
+
 @RestController 
 @RequestMapping("/api/users")
 public class UserController {
@@ -106,8 +109,12 @@ public class UserController {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             UserResponse userResponse = new UserResponse(user.getId(), user.getUsername(), user.getEmail());
-            return ResponseEntity.ok(userResponse);
+            return ResponseEntity.ok(
+                new ApiResponse<>(true, userResponse, "User info fetched successfully")
+            );
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-    }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(new ApiResponse<>(false, null, "User not found"));
+
+        }
 }
