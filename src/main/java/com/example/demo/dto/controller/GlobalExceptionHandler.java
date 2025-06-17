@@ -5,50 +5,39 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import com.example.demo.dto.ErrorResponse;
-import org.springframework.web.context.request.ServletWebRequest;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import org.springframework.web.context.request.WebRequest;
-
-
-/*
-
-@ControllerAdvice
-public class GlobalExceptionHandler {
-
-    // Handle custom errors
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<?> handleIllegalArg(IllegalArgumentException ex) {
-        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
-    }
-
-    // Handle validation errors (@Valid)
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(err -> 
-            errors.put(err.getField(), err.getDefaultMessage()));
-        return ResponseEntity.badRequest().body(errors);
-    }
-
-    // Handle generic errors
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<?> handleOther(Exception ex) {
-        // Avoid exposing stack traces in production
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(Map.of("error", "Internal server error"));
-    }
-}
-
-*/
-
-import com.example.demo.dto.ErrorResponse;
 import org.springframework.web.context.request.ServletWebRequest;
 
+import java.util.stream.Collectors;
+
+import com.example.demo.exception.UnauthorizedException;
+import com.example.demo.exception.ResourceNotFoundException;
+
+
+
+
+
 @ControllerAdvice
 public class GlobalExceptionHandler {
+    // Handle validation errors (-->@Valid)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex, WebRequest request) {
+        String errors = ex.getBindingResult()
+                          .getFieldErrors()
+                          .stream()
+                          .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                          .collect(Collectors.joining("; "));
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            HttpStatus.BAD_REQUEST.getReasonPhrase(),
+            errors,
+            ((ServletWebRequest)request).getRequest().getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+
+    // Handle all other exceptions (fallback)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex, WebRequest request) {
         ErrorResponse error = new ErrorResponse(
@@ -60,6 +49,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+
+
 }
-
-

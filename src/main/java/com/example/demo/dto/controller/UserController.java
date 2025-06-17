@@ -4,17 +4,22 @@ import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.dto.LoginRequest;
 import com.example.demo.dto.UserResponse;
+import com.example.demo.dto.ApiResponse;
+import com.example.demo.security.JwtUtil;
+import com.example.demo.exception.UnauthorizedException;
+import com.example.demo.exception.ResourceNotFoundException;
+
 import org.springframework.beans.factory.annotation.Autowired; 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import com.example.demo.security.JwtUtil;
 
-import com.example.demo.dto.ApiResponse;
+import com.example.demo.exception.UnauthorizedException;
+import com.example.demo.exception.ResourceNotFoundException;
 
 
 @RestController 
@@ -27,7 +32,7 @@ public class UserController {
     @Autowired 
     private JwtUtil jwtUtil;
 
-    // Password validation: at least 8 chars, 1 uppercase, 1 special character
+    //password validation: at least 8 chars, 1 uppercase, 1 special character......
     private boolean isValidPassword(String password) {
         return password != null &&
                password.length() >= 8 &&
@@ -35,44 +40,55 @@ public class UserController {
                password.matches(".*[^a-zA-Z0-9].*");   // special char
     }
 
-    // User registration
+    //user registration......
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody User user){
         if (!isValidPassword(user.getPassword())) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("password must be at least 8 characters long, have an uppercase letter, and one special character.");
+            throw new IllegalArgumentException("Password must be at least 8 characters long, have an uppercase letter, and one special character.");
+        }
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email already exists.");
+        }
+        if (userRepository.findByUsername(user.getUsername()) !=null ) {
+            throw new IllegalArgumentException("Username already exists.");
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         User savedUser = userRepository.save(user);
-        return ResponseEntity.ok(savedUser);
+        UserResponse userResponse = new UserResponse(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail());
+        return ResponseEntity.ok(new ApiResponse<>(true, userResponse, "User registered successfully"));
     }
 
-    // Get user by ID
+    //get user by ID....
     @GetMapping("/{id}")
-    public User getUserById(@PathVariable Long id){
-        return userRepository.findById(id).orElse(null);
+    public ResponseEntity<?> getUserById(@PathVariable Long id){
+        User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        UserResponse userResponse = new UserResponse(user.getId(), user.getUsername(), user.getEmail());
+        return ResponseEntity.ok(new ApiResponse<>(true, userResponse, "User found"));
     }
 
-    // Update user by ID
+    //update user by ID.....
     @PutMapping("/{id}")
-    public UserResponse updateUser(@PathVariable Long id, @RequestBody User updatedUser){
-        return userRepository.findById(id).map(user -> {
-            user.setUsername(updatedUser.getUsername());
-            user.setEmail(updatedUser.getEmail());
-            user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
-            User saved = userRepository.save(user);
-            return new UserResponse(saved.getId(), saved.getUsername(), saved.getEmail());
-        }).orElse(null);
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User updatedUser){
+        User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        user.setUsername(updatedUser.getUsername());
+        user.setEmail(updatedUser.getEmail());
+        user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+        User saved = userRepository.save(user);
+        UserResponse userResponse = new UserResponse(saved.getId(), saved.getUsername(), saved.getEmail());
+        return ResponseEntity.ok(new ApiResponse<>(true, userResponse, "User updated successfully"));
     }
 
-    // Delete user by ID
+    //delete user by ID/....
     @DeleteMapping("/{id}")
-    public void deleteUser(@PathVariable Long id){
+    public ResponseEntity<?> deleteUser(@PathVariable Long id){
+        if (!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User not found");
+        }
         userRepository.deleteById(id);
+        return ResponseEntity.ok(new ApiResponse<>(true, null, "User deleted successfully"));
     }
 
-    // Login endpoint
+    //login endpoint,....
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request){
         Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
@@ -85,25 +101,22 @@ public class UserController {
                     user.getUsername(),
                     user.getEmail()
                 );
-                return ResponseEntity.ok(
-                    new java.util.HashMap<String, Object>() {{
-                        put("user", userResponse);
-                        put("token", token);
-                    }}
-                );
+                HashMap<String, Object> data = new HashMap<>();
+                data.put("user", userResponse);
+                data.put("token", token);
+                return ResponseEntity.ok(new ApiResponse<>(true, data, "Login successful"));
             }
         }
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid login credentials");
+        throw new UnauthorizedException("Invalid login credentials");
     }
 
-    // Get current user info via JWT
+    //get current user info via JWT.....
     @GetMapping("/me")
     public ResponseEntity<?> getMe(@RequestHeader("Authorization") String authHeader) {
         String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
         if (!jwtUtil.validateToken(token)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid JWT");
+            throw new UnauthorizedException("Invalid JWT");
         }
-
         String email = jwtUtil.extractUsername(token);
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isPresent()) {
@@ -113,8 +126,6 @@ public class UserController {
                 new ApiResponse<>(true, userResponse, "User info fetched successfully")
             );
         }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(new ApiResponse<>(false, null, "User not found"));
-
-        }
+        throw new ResourceNotFoundException("User not found");
+    }
 }

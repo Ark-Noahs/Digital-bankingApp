@@ -10,23 +10,25 @@ import com.example.demo.repository.TransactionRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JwtUtil;
 import com.example.demo.dto.ApiResponse;
-
+import com.example.demo.exception.UnauthorizedException;
+import com.example.demo.exception.ResourceNotFoundException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 
-
-
-import jakarta.validation.Valid; 
+import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import com.example.demo.exception.UnauthorizedException;
+import com.example.demo.exception.ResourceNotFoundException;
+
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -44,27 +46,27 @@ public class TransactionController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    // Helper to get current user from JWT
+    //helper to get current user from JWT.....
     private Optional<User> getCurrentUser(String authHeader) {
         String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
         String email = jwtUtil.extractUsername(token);
         return userRepository.findByEmail(email);
     }
 
-    // DEPOSIT
+    //    DEPOSIT
     @PostMapping("/deposit/{accountId}")
     public ResponseEntity<?> deposit(@RequestHeader("Authorization") String authHeader,
                                      @PathVariable Long accountId,
                                      @Valid @RequestBody TransactionRequest request) {
         Optional<User> userOpt = getCurrentUser(authHeader);
-        if (userOpt.isEmpty()) return ResponseEntity.status(401).body("Unauthorized");
+        if (userOpt.isEmpty()) throw new UnauthorizedException("Unauthorized");
 
         Optional<Account> accOpt = accountRepository.findById(accountId);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId()))
-            return ResponseEntity.status(404).body("Account not found");
+            throw new ResourceNotFoundException("Account not found");
 
         if (request.getAmount() == null || request.getAmount() <= 0)
-            return ResponseEntity.badRequest().body("Amount must be positive");
+            throw new IllegalArgumentException("Amount must be positive");
 
         Account acc = accOpt.get();
         acc.setBalance(acc.getBalance() + request.getAmount());
@@ -86,27 +88,26 @@ public class TransactionController {
                     saved.getDescription(), saved.getTimestamp(), null),
                 "Deposit successful")
         );
+    }
 
-        }
-
-    // WITHDRAW...
+    // WITHDRAW
     @PostMapping("/withdraw/{accountId}")
     public ResponseEntity<?> withdraw(@RequestHeader("Authorization") String authHeader,
                                       @PathVariable Long accountId,
                                       @Valid @RequestBody TransactionRequest request) {
         Optional<User> userOpt = getCurrentUser(authHeader);
-        if (userOpt.isEmpty()) return ResponseEntity.status(401).body("Unauthorized");
+        if (userOpt.isEmpty()) throw new UnauthorizedException("Unauthorized");
 
         Optional<Account> accOpt = accountRepository.findById(accountId);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId()))
-            return ResponseEntity.status(404).body("Account not found");
+            throw new ResourceNotFoundException("Account not found");
 
         if (request.getAmount() == null || request.getAmount() <= 0)
-            return ResponseEntity.badRequest().body("Amount must be positive");
+            throw new IllegalArgumentException("Amount must be positive");
 
         Account acc = accOpt.get();
         if (acc.getBalance() < request.getAmount())
-            return ResponseEntity.badRequest().body("Insufficient funds");
+            throw new IllegalArgumentException("Insufficient funds");
 
         acc.setBalance(acc.getBalance() - request.getAmount());
         accountRepository.save(acc);
@@ -127,46 +128,45 @@ public class TransactionController {
                     saved.getDescription(), saved.getTimestamp(), null),
                 "Withdrawal successful")
         );
-    
-        }
+    }
 
-    // TRANSFER
+    //      TRANSFER
     @PostMapping("/transfer/{accountId}")
     public ResponseEntity<?> transfer(@RequestHeader("Authorization") String authHeader,
                                       @PathVariable Long accountId,
                                       @Valid @RequestBody TransactionRequest request) {
         Optional<User> userOpt = getCurrentUser(authHeader);
-        if (userOpt.isEmpty()) return ResponseEntity.status(401).body("Unauthorized");
+        if (userOpt.isEmpty()) throw new UnauthorizedException("Unauthorized");
 
         Optional<Account> fromAccOpt = accountRepository.findById(accountId);
         if (fromAccOpt.isEmpty() || !fromAccOpt.get().getUser().getId().equals(userOpt.get().getId()))
-            return ResponseEntity.status(404).body("Source account not found");
+            throw new ResourceNotFoundException("Source account not found");
 
         if (request.getAmount() == null || request.getAmount() <= 0)
-            return ResponseEntity.badRequest().body("Amount must be positive");
+            throw new IllegalArgumentException("Amount must be positive");
 
         if (request.getToAccountId() == null)
-            return ResponseEntity.badRequest().body("Missing destination account ID");
+            throw new IllegalArgumentException("Missing destination account ID");
 
         if (accountId.equals(request.getToAccountId()))
-            return ResponseEntity.badRequest().body("Cannot transfer to the same account");
+            throw new IllegalArgumentException("Cannot transfer to the same account");
 
         Optional<Account> toAccOpt = accountRepository.findById(request.getToAccountId());
-        if (toAccOpt.isEmpty()) return ResponseEntity.status(404).body("Destination account not found");
+        if (toAccOpt.isEmpty()) throw new ResourceNotFoundException("Destination account not found");
 
         Account fromAcc = fromAccOpt.get();
         Account toAcc = toAccOpt.get();
 
         if (fromAcc.getBalance() < request.getAmount())
-            return ResponseEntity.badRequest().body("Insufficient funds");
+            throw new IllegalArgumentException("Insufficient funds");
 
-        // Subtract from sender, add to receiver
+        //subtract from sender, add to receiver
         fromAcc.setBalance(fromAcc.getBalance() - request.getAmount());
         toAcc.setBalance(toAcc.getBalance() + request.getAmount());
         accountRepository.save(fromAcc);
         accountRepository.save(toAcc);
 
-        // Log transaction
+        //log the transaction
         Transaction txn = new Transaction();
         txn.setAccount(fromAcc);
         txn.setType("TRANSFER");
@@ -183,11 +183,9 @@ public class TransactionController {
                     saved.getDescription(), saved.getTimestamp(), toAcc.getId()),
                 "Transfer successful")
         );
+    }
 
-    
-        }
-
-    // Get All Transactions for an Account (Transaction History)
+    //get All transactions for an account(ttransaction history)
     @GetMapping("/history/{accountId}")
     public ResponseEntity<?> getHistory(
         @RequestHeader("Authorization") String authHeader,
@@ -199,35 +197,19 @@ public class TransactionController {
         @RequestParam(defaultValue = "10") int size
     ) {
         Optional<User> userOpt = getCurrentUser(authHeader);
-        if (userOpt.isEmpty()) return ResponseEntity.status(401).body("Unauthorized");
+        if (userOpt.isEmpty()) throw new UnauthorizedException("Unauthorized");
 
         Optional<Account> accOpt = accountRepository.findById(accountId);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId()))
-            return ResponseEntity.status(404).body("Account not found");
+            throw new ResourceNotFoundException("Account not found");
 
-        //DEBUG LOGGING
-        System.out.println("DEBUG: User ID making request: " + userOpt.get().getId());
-        System.out.println("DEBUG: Account ID: " + accountId + ", Account's User ID: " + accOpt.get().getUser().getId());
+        // debug logg...
+        // System.out.println("DEBUG: User ID making request: " + userOpt.get().getId());
+        // System.out.println("DEBUG: Account ID: " + accountId + ", Account's User ID: " + accOpt.get().getUser().getId());
 
-        //had to hard code dates bc were mismatching when being callled for transaction history
-        LocalDateTime start = LocalDateTime.of(2025, 6, 6, 0, 0, 0);
-        LocalDateTime end = LocalDateTime.of(2025, 6, 6, 23, 59, 59);
-
-        System.out.println("DEBUG: Query date range: start=" + start + ", end=" + end);
-        Pageable pageable = PageRequest.of(page, size);
-
-        //DEBUG: Show ALL transactions for the account, ignoring filters
-        List<Transaction> allTxns = transactionRepository.findByAccountId(accountId);
-        System.out.println("DEBUG: All transactions for accountId " + accountId + ": count=" + allTxns.size());
-        allTxns.forEach(t -> System.out.println("    [ALL] " + t.getId() + " " + t.getType() + " " + t.getAmount() + " " + t.getTimestamp()));
-
-        //RETURN ALL transactions (no date/type filter) so Postman always shows results....
+        //returns ALL transactions (no date/type filter)....
         List<Transaction> txnsList = transactionRepository.findByAccountId(accountId);
-        System.out.println("DEBUG: Basic transactions: " + txnsList.size());
         Page<Transaction> txns = new org.springframework.data.domain.PageImpl<>(txnsList);
-        
-        System.out.println("DEBUG: Transactions found by paged/filtered query: " + txns.getTotalElements());
-        txns.getContent().forEach(t -> System.out.println("    [PAGE] " + t.getId() + " " + t.getType() + " " + t.getAmount() + " " + t.getTimestamp()));
 
         List<TransactionResponse> responses = txns.getContent().stream()
                 .map(txn -> new TransactionResponse(
@@ -246,8 +228,6 @@ public class TransactionController {
         return ResponseEntity.ok(
             new ApiResponse<>(true, result, "Transaction history fetched successfully")
         );
-
-
     }
 
 }

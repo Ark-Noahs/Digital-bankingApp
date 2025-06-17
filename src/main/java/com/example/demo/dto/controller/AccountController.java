@@ -24,6 +24,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Collectors;
 
+import com.example.demo.exception.UnauthorizedException;
+import com.example.demo.exception.ResourceNotFoundException;
+
+
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountController {
@@ -54,14 +58,15 @@ public class AccountController {
             String errors = bindingResult.getAllErrors().stream()
                     .map(e -> e.getDefaultMessage())
                     .collect(Collectors.joining("; "));
-            return ResponseEntity.badRequest()
-                .body(new ApiResponse<>(false, null, errors));
-        }
+            //return ResponseEntity.badRequest().body(new ApiResponse<>(false, null, errors));  normal string error 
+            throw new IllegalArgumentException(errors); //now use global handlers catch this error instead of ^^^^
+        }   
 
         Optional<User> userOpt = getCurrentUser(authHeader);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ApiResponse<>(false, null, "Unauthorized: Invalid token or user."));
+            //return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>(false, null, "Unauthorized: Invalid token or user."));
+            throw new UnauthorizedException("Unauthorized: invalid token/user..");
+
         }
 
         Account acc = new Account();
@@ -69,7 +74,7 @@ public class AccountController {
         acc.setBalance(request.getInitialBalance());
         acc.setUser(userOpt.get());
 
-        // --- Generate and assign unique account number ---
+        // generate and assign unique account number...
         String accNum = generateAccountNumber();
         while (accountRepository.existsByAccountNumber(accNum)) {
             accNum = generateAccountNumber();
@@ -86,12 +91,12 @@ public class AccountController {
                     saved.getBalance(),
                     saved.getAccountNumber()
                 ),
-                "Account created successfully"
+                "Account created successfully!!!"
             )
         );
     }
 
-    // Generates a random 10-digit account number
+    //generates a random 10-digit account number....
     private String generateAccountNumber() {
         long number = (long)(Math.random() * 1_000_000_0000L);
         return String.format("%010d", number);
@@ -101,11 +106,11 @@ public class AccountController {
     public ResponseEntity<?> getMyAccounts(@RequestHeader("Authorization") String authHeader) {
         Optional<User> userOpt = getCurrentUser(authHeader);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body("Unauthorized");
+            //return ResponseEntity.status(401).body("Unauthorized");
+            throw new UnauthorizedException("Unauthorized! ");
         }
         List<Account> accounts = accountRepository.findByUser(userOpt.get());
-        // FIXED: Pass all 4 args
-        List<AccountResponse> responses = accounts.stream()
+        List<AccountResponse> responses = accounts.stream()// FIXED: Pass all 4 args....
                 .map(acc -> new AccountResponse(
                         acc.getId(),
                         acc.getAccountType(),
@@ -120,15 +125,16 @@ public class AccountController {
     public ResponseEntity<?> getAccountById(@PathVariable Long id, @RequestHeader("Authorization") String authHeader) {
         Optional<User> userOpt = getCurrentUser(authHeader);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body("Unauthorized");
+            //return ResponseEntity.status(401).body("Unauthorized");
+            throw new UnauthorizedException("Unauthorized! ");
         }
         Optional<Account> accOpt = accountRepository.findById(id);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId())) {
-            return ResponseEntity.status(404).body("Account not found or access denied");
+            //return ResponseEntity.status(404).body("Account not found or access denied");
+            throw new ResourceNotFoundException("Account not found or your access is being DENIED..");
         }
         Account acc = accOpt.get();
-        // FIXED: Pass all 4 args
-        return ResponseEntity.ok(new AccountResponse(
+        return ResponseEntity.ok(new AccountResponse(// FIXED: Pass all 4 args
                 acc.getId(),
                 acc.getAccountType(),
                 acc.getBalance(),
@@ -147,22 +153,24 @@ public class AccountController {
             String errors = bindingResult.getAllErrors().stream()
                     .map(e -> e.getDefaultMessage())
                     .collect(Collectors.joining("; "));
-            return ResponseEntity.badRequest().body(errors);
+            //return ResponseEntity.badRequest().body(errors);
+            throw new IllegalArgumentException(errors); 
         }
 
         Optional<User> userOpt = getCurrentUser(authHeader);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body("Unauthorized");
+           // return ResponseEntity.status(401).body("Unauthorized");
+           throw new UnauthorizedException("Unauthorized! ");
         }
         Optional<Account> accOpt = accountRepository.findById(id);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId())) {
-            return ResponseEntity.status(404).body("Account not found or access denied");
+            //return ResponseEntity.status(404).body("Account not found or access denied");
+            throw new ResourceNotFoundException("Account not found or your access is neing DENIED");
         }
         Account acc = accOpt.get();
         acc.setAccountType(request.getAccountType());
         acc.setBalance(request.getInitialBalance());
         Account saved = accountRepository.save(acc);
-        // FIXED: Pass all 4 args
         return ResponseEntity.ok(new AccountResponse(
                 saved.getId(),
                 saved.getAccountType(),
@@ -175,11 +183,13 @@ public class AccountController {
     public ResponseEntity<?> deleteAccount(@PathVariable Long id, @RequestHeader("Authorization") String authHeader) {
         Optional<User> userOpt = getCurrentUser(authHeader);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body("Unauthorized");
+            //return ResponseEntity.status(401).body("Unauthorized");
+            throw new UnauthorizedException("Unauthorized! ");
         }
         Optional<Account> accOpt = accountRepository.findById(id);
         if (accOpt.isEmpty() || !accOpt.get().getUser().getId().equals(userOpt.get().getId())) {
-            return ResponseEntity.status(404).body("Account not found or access denied");
+            //return ResponseEntity.status(404).body("Account not found or access denied");
+            throw new ResourceNotFoundException("Account not found or your access is being denied");
         }
         accountRepository.deleteById(id);
         return ResponseEntity.ok("Account deleted successfully");
