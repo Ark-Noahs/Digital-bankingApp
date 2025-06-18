@@ -1,7 +1,10 @@
+
 import React, { useState } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
+
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
+import RegisterPage from "./pages/RegisterPage";
 
 // Helper: Checks if token exists in localStorage
 function isAuthenticated() {
@@ -36,7 +39,18 @@ function App() {
               <LoginPage onLogin={handleLogin} />
             )
           }
+          />
+        <Route
+          path = "/register"
+          element ={
+            isAuthenticated() ? ( 
+              <Navigate to ="/dashboard" />
+            ) : ( 
+              <RegisterPage />
+            )
+          }
         />
+
         <Route
           path="/dashboard"
           element={

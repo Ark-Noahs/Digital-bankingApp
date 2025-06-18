@@ -1,5 +1,8 @@
+
 import React, { useState } from "react";
 import { login } from "../services/api";
+import { Link } from "react-router-dom";
+
 
 function LoginPage({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -47,8 +50,17 @@ function LoginPage({ onLogin }) {
         {error && <div style={{ color: "red", marginBottom: 10 }}>{error}</div>}
         <button type="submit" style={{ width: "100%" }}>Login</button>
       </form>
+        <p style={{ marginTop: 15 }}>
+            Don't have an account? <Link to="/register">Register here</Link>
+        </p>  
     </div>
   );
 }
+
+<p style={{ marginTop: 15 }}>
+  Don't have an account? <a href="/register">Register here</a>
+</p>
+
+
 
 export default LoginPage;

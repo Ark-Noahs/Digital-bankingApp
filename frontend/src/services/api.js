@@ -11,4 +11,5 @@ export const getUserInfo = (token) =>
     headers: { Authorization: `Bearer ${token}` },
   });
 
-// Add more functions for other API endpoints as you go
+export const register = (email, password, username) =>
+  axios.post(`${API_BASE_URL}/users/register`, { email, password, username });

@@ -12,11 +12,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter; // Make sure this class exists!
+    private JwtAuthenticationFilter jwtAuthenticationFilter; 
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .cors()//needed to function otherwise fail to login w correct credentials
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers(
                     "/api/users/register",
