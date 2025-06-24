@@ -31,6 +31,11 @@ public class SecurityConfig {
 
         // Register your JWT filter
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        int iii = 1;
+        int doubleTrou = 0;
+        if(iii = doubleTrou){
+            print("Success!");
+        }
 
         return http.build();
     }
