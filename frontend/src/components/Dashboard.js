@@ -1,35 +1,51 @@
+
+
 import React, { useEffect, useState } from 'react';
-  import { getUserInfo } from '../services/api';
+  import { getUserAccounts } from "../services/api";
   
-  function Dashboard({ token, onLogout }) {
-    const [user, setUser] = useState(null);
+  function Dashboard() {
+    const [accounts, setAccounts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const token = localStorage.getItem("token");
   
     useEffect(() => {
-      const fetchUser = async () => {
+      async function fetchAccounts() {
         try {
-          const res = await getUserInfo(token);
-          setUser(res.data);
+            const res = await getUserAccounts(token);
+            setAccounts(res.data);
         } catch (err) {
-          console.error('Failed to fetch user info');
-          onLogout();
+            console.error("ERROR fetching accounts", err);
+        } finally {
+            setLoading(false);
         }
-      };
-      fetchUser();
-    }, [token, onLogout]);
+      }
+
+      fetchAccounts();
+    }, [token]);
+    if (loading) return <p>Loading........</p>
   
     return (
-      <div>
-        <h2>Dashboard</h2>
-        {user ? (
-          <div>
-            <p>Welcome, {user.username}!</p>
-            <button onClick={onLogout}>Logout</button>
-          </div>
+      <div style={{ display: "flex", height: "100vh" }}>
+      <div style={{ width: "250px", borderRight: "1px solid #ccc", padding: 20 }}>
+        <h3>Your Accounts</h3>
+        {accounts.length === 0 ? (
+          <p>You don't have any accounts yet.</p>
         ) : (
-          <p>Loading...</p>
+          <ul>
+            {accounts.map(acc => (
+              <li key={acc.id}>{acc.name} (${acc.balance})</li>
+            ))}
+          </ul>
         )}
+        <button>Create Account</button>
       </div>
-    );
-  }
-  
-  export default Dashboard;
+      <div style={{ flex: 1, padding: 20 }}>
+        <h2>Dashboard</h2>
+        <button>Send Money</button>
+      </div>
+    </div>
+  );
+}
+
+export default Dashboard;

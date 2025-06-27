@@ -12,7 +12,7 @@ function LoginPage({ onLogin }) {
     e.preventDefault();
     try {
       const res = await login(email, password);
-      const token = res.data.token;
+      const token = res.data.data.token;
       onLogin(token);
       navigate('/dashboard');
     } catch (err) {
